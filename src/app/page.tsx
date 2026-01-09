@@ -5,7 +5,6 @@ export default function Home() {
       <h1 className="text-2xl font-bold text-orange-500">
         Silahkan Scan QR Code di Meja Anda ya Kak! 🍜
       </h1>
-      <p className="text-gray-500 mt-2">Atau akses localhost:3000/table/01</p>
     </main>
   );
 }
