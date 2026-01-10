@@ -71,7 +71,7 @@ export default function LandingPage({
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (isError) setIsError(false); // Matiin error pas user mulai ngetik
+              if (isError) setIsError(false);
             }}
             placeholder="Ketik namamu di sini..."
             className={`w-full block px-6 py-4 rounded-2xl border-2 bg-white outline-none transition-all text-[#2D3142] text-lg font-semibold ${

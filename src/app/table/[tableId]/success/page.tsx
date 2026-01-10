@@ -36,12 +36,12 @@ export default function SuccessPage({
           PESANAN DITERIMA!
         </h1>
         <p className="text-gray-500 font-medium mb-8">
-          Koki kita lagi masak buat{" "}
+          Resto lagi siapin makanan buat{" "}
           <span className="text-orange-600 font-bold">Meja {tableId}</span> nih.
         </p>
 
         {/* AREA STRUK */}
-        <div className="bg-gray-50 rounded-[2rem] p-6 border-2 border-dashed border-gray-200 relative">
+        <div className="bg-gray-50 rounded-4xl p-6 border-2 border-dashed border-gray-200 relative">
           <div className="space-y-4 text-left">
             {/* Header Struk */}
             <div className="flex justify-between border-b border-gray-200 pb-3">
