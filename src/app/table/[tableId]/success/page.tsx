@@ -116,9 +116,18 @@ export default function SuccessPage({
         <button
           onClick={() => {
             if (navigator.vibrate) navigator.vibrate(50);
-            router.push(`/table/${tableId}`);
+            router.push(`/table/${tableId}/menu`);
           }}
           className="w-full mt-10 bg-[#2D3142] text-white py-5 rounded-[2rem] font-black hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200"
+        >
+          PESAN LAGI
+        </button>
+        <button
+          onClick={() => {
+            if (navigator.vibrate) navigator.vibrate(50);
+            router.push(`/table/${tableId}`);
+          }}
+          className="w-full mt-2 bg-white py-5 rounded-[2rem] font-black hover:bg-[#e2e2e2] border-3 border-gray-200 active:scale-95 transition-all shadow-xl shadow-gray-200"
         >
           SELESAI
         </button>

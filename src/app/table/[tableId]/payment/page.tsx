@@ -77,8 +77,8 @@ export default function PaymentPage({
         {/* Header */}
         <div className="flex-none px-6 py-4 flex items-center border-b border-gray-50 bg-white z-20">
           <button
-            onClick={() => router.push(`/table/${tableId}/checkout`)}
-            className="w-10 h-10 text-orange-500 font-semibold active:scale-90 transition-all"
+            onClick={() => router.back()}
+            className="w-10 h-10 text-orange-500 active:scale-90 transition-all text-[12px] font-semibold"
           >
             Back
           </button>
@@ -173,7 +173,7 @@ export default function PaymentPage({
                 : "bg-[#FF6B35] text-white active:scale-95 shadow-orange-200"
             }`}
           >
-            {isLoading ? "Tunggu Sebentar..." : "Bayar Sekarang 🚀"}
+            {isLoading ? "Tunggu Sebentar..." : "Bayar Sekarang"}
           </button>
         </div>
       </main>
