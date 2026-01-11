@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-// --- TAMBAHAN IMPORT UNTUK GRAFIK ---
+// IMPORT UNTUK GRAFIK
 import {
   AreaChart,
   Area,
@@ -19,20 +19,20 @@ const supabase = createClient(
 );
 
 export default function AdminDashboard() {
+  const [range, setRange] = useState("today"); // State filter baru
   const [stats, setStats] = useState({
     totalOrders: 0,
     revenue: 0,
     pending: 0,
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [allOrders, setAllOrders] = useState<any[]>([]); // Buat nyimpen data CSV & Grafik
+  const [allOrders, setAllOrders] = useState<any[]>([]); // Untuk data grafik & CSV
   const [loading, setLoading] = useState(true);
 
   // --- LOGIC EKSPOR CSV ---
   const exportToCSV = () => {
     if (allOrders.length === 0)
-      return alert("Belum ada data buat diekspor, Bang!");
-
+      return alert("Gak ada data buat diekspor, Bang!");
     const headers = [
       "ID",
       "Waktu",
@@ -49,48 +49,50 @@ export default function AdminDashboard() {
       o.total_price,
       o.status,
     ]);
-
     const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `Laporan_Resto_${new Date().toLocaleDateString()}.csv`
-    );
+    link.href = url;
+    link.download = `Laporan_${range}_${new Date().toLocaleDateString()}.csv`;
     link.click();
   };
 
-  // --- LOGIC DATA GRAFIK (Per Jam) ---
+  // --- LOGIC DATA GRAFIK ---
   const chartData = useMemo(() => {
-    const hourlyData: { [key: string]: number } = {};
-    // Inisialisasi jam biar grafik mulai dari jam 08:00 sampe jam sekarang (opsional)
+    const grouped: { [key: string]: number } = {};
     allOrders.forEach((order) => {
-      const hour = new Date(order.created_at).getHours() + ":00";
-      hourlyData[hour] = (hourlyData[hour] || 0) + Number(order.total_price);
+      const d = new Date(order.created_at);
+      const label =
+        range === "today"
+          ? d.getHours() + ":00"
+          : d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" });
+      grouped[label] = (grouped[label] || 0) + Number(order.total_price);
     });
-
-    return Object.keys(hourlyData)
-      .sort((a, b) => parseInt(a) - parseInt(b)) // Urutkan jamnya
-      .map((key) => ({
-        time: key,
-        revenue: hourlyData[key],
-      }));
-  }, [allOrders]);
+    return Object.keys(grouped).map((key) => ({
+      time: key,
+      revenue: grouped[key],
+    }));
+  }, [allOrders, range]);
 
   const fetchDashboardData = async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    setLoading(true);
+    const now = new Date();
+    let startDate = new Date();
+
+    // Custom Range Logic
+    if (range === "today") startDate.setHours(0, 0, 0, 0);
+    else if (range === "7days") startDate.setDate(now.getDate() - 7);
+    else if (range === "30days") startDate.setDate(now.getDate() - 30);
 
     const { data: orders, error } = await supabase
       .from("orders")
       .select("*")
-      .gte("created_at", today.toISOString())
-      .order("created_at", { ascending: false });
+      .gte("created_at", startDate.toISOString())
+      .order("created_at", { ascending: true }); // Asc untuk grafik
 
     if (!error && orders) {
-      setAllOrders(orders); // Simpan semua data
+      setAllOrders(orders);
       const totalRevenue = orders.reduce(
         (acc, curr) => acc + Number(curr.total_price),
         0
@@ -102,7 +104,8 @@ export default function AdminDashboard() {
         revenue: totalRevenue,
         pending: pendingOrders,
       });
-      setRecentOrders(orders.slice(0, 5));
+      // Recent tetap ambil yang terbaru (reverse dari ascending)
+      setRecentOrders([...orders].reverse().slice(0, 5));
     }
     setLoading(false);
   };
@@ -124,9 +127,9 @@ export default function AdminDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [range]); // Refresh saat filter ganti
 
-  if (loading)
+  if (loading && allOrders.length === 0)
     return (
       <div className="p-10 text-center font-black animate-pulse">
         MEMUAT DATA...
@@ -134,12 +137,12 @@ export default function AdminDashboard() {
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans text-[#2D3142]">
+    <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
       <div className="max-w-6xl mx-auto">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-4xl font-black tracking-tighter">
+            <h1 className="text-4xl font-black text-[#2D3142] tracking-tighter">
               Admin Central
             </h1>
             <p className="text-gray-400 font-bold uppercase text-xs tracking-widest mt-1">
@@ -147,12 +150,11 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            {/* TOMBOL CSV BARU */}
             <button
               onClick={exportToCSV}
-              className="bg-green-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
+              className="bg-green-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-green-700 transition-all flex items-center gap-2"
             >
-              Ekspor Laporan
+              📥 EKSPOR CSV
             </button>
             <Link
               href="/admin/orders"
@@ -173,7 +175,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100">
             <p className="text-gray-400 font-black text-[10px] uppercase mb-2">
-              Total Pesanan Hari Ini
+              Total Pesanan ({range})
             </p>
             <h2 className="text-4xl font-black text-[#2D3142]">
               {stats.totalOrders}
@@ -198,19 +200,37 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* SECTION GRAFIK PENJUALAN BARU */}
-        <div className="bg-white p-8 rounded-[3.5rem] shadow-sm border border-gray-100 mb-10 overflow-hidden">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xl font-black">Tren Omzet Hari Ini</h3>
-            <span className="text-[10px] font-black bg-orange-50 text-orange-500 px-3 py-1 rounded-full uppercase">
-              Real-time
-            </span>
+        {/* GRAFIK SECTION */}
+        <div className="bg-white p-8 rounded-[3.5rem] shadow-sm border border-gray-100 mb-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <h3 className="text-xl font-black text-[#2D3142]">
+              Tren Penjualan
+            </h3>
+            <div className="flex bg-gray-100 p-1 rounded-2xl gap-1">
+              {[
+                { id: "today", l: "Hari Ini" },
+                { id: "7days", l: "7 Hari" },
+                { id: "30days", l: "30 Hari" },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setRange(t.id)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                    range === t.id
+                      ? "bg-white text-orange-500 shadow-sm"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {t.l}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
@@ -224,7 +244,7 @@ export default function AdminDashboard() {
                   dataKey="time"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fontWeight: "bold", fill: "#9ca3af" }}
+                  tick={{ fontSize: 12, fontWeight: "bold" }}
                 />
                 <YAxis hide />
                 <Tooltip
@@ -234,10 +254,6 @@ export default function AdminDashboard() {
                     boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                   }}
                   itemStyle={{ color: "#f97316", fontWeight: "bold" }}
-                  formatter={(value) => [
-                    `Rp ${(value || 0).toLocaleString()}`,
-                    "Omzet",
-                  ]}
                 />
                 <Area
                   type="monotone"
@@ -245,7 +261,7 @@ export default function AdminDashboard() {
                   stroke="#f97316"
                   strokeWidth={4}
                   fillOpacity={1}
-                  fill="url(#colorRevenue)"
+                  fill="url(#colorRev)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -270,10 +286,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {recentOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="text-sm hover:bg-gray-50/50 transition-colors"
-                  >
+                  <tr key={order.id} className="text-sm">
                     <td className="py-4 px-2 font-black text-orange-600">
                       #{order.table_number}
                     </td>
@@ -307,7 +320,7 @@ export default function AdminDashboard() {
           </div>
           {recentOrders.length === 0 && (
             <div className="py-10 text-center text-gray-300 font-bold italic">
-              Belum ada pesanan masuk hari ini...
+              Belum ada pesanan masuk...
             </div>
           )}
         </div>
