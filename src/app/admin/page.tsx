@@ -154,7 +154,7 @@ export default function AdminDashboard() {
               onClick={exportToCSV}
               className="bg-green-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-green-700 transition-all flex items-center gap-2"
             >
-              📥 EKSPOR CSV
+              EKSPOR CSV
             </button>
             <Link
               href="/admin/orders"
