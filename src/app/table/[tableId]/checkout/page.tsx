@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, use } from "react"; // Tambah use
+import { useState, useEffect, use } from "react";
 
 export default function CheckoutPage({
   params,
@@ -9,20 +9,18 @@ export default function CheckoutPage({
   params: Promise<{ tableId: string }>;
 }) {
   const router = useRouter();
-  const resolvedParams = use(params); // Unwrapping params biar gak error
+  const resolvedParams = use(params);
   const tableId = resolvedParams.tableId;
 
   const [cart, setCart] = useState<any[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
-  // 1. Mencegah Hydration Error
   useEffect(() => {
     setIsMounted(true);
     const savedCart = localStorage.getItem("cart");
     if (savedCart) setCart(JSON.parse(savedCart));
   }, []);
 
-  // 2. Logic Update Quantity yang Beneran Kerja
   const updateQuantity = (id: any, delta: number) => {
     const updatedCart = cart
       .map((item) => {
@@ -32,8 +30,20 @@ export default function CheckoutPage({
         }
         return item;
       })
-      .filter((item) => item.quantity > 0); // Kalau 0, hapus dari keranjang
+      .filter((item) => item.quantity > 0);
 
+    setCart(updatedCart);
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+  };
+
+  // --- LOGIC BARU: UPDATE CATATAN ---
+  const updateNote = (id: any, note: string) => {
+    const updatedCart = cart.map((item) => {
+      if (item.id === id) {
+        return { ...item, note: note };
+      }
+      return item;
+    });
     setCart(updatedCart);
     localStorage.setItem("cart", JSON.stringify(updatedCart));
   };
@@ -45,7 +55,6 @@ export default function CheckoutPage({
   const biayaLain = 0;
   const total = subtotal + biayaLain;
 
-  // Render kosong dulu di server biar gak mismatch
   if (!isMounted) return <div className="min-h-screen bg-white" />;
 
   return (
@@ -71,42 +80,54 @@ export default function CheckoutPage({
             cart.map((item, idx) => (
               <div
                 key={item.id || idx}
-                className="group flex items-center gap-4 p-2 pr-4 rounded-xl border border-gray-50 bg-white shadow-sm hover:shadow-md transition-all"
+                className="group flex flex-col gap-3 p-4 rounded-3xl border border-gray-50 bg-white shadow-sm hover:shadow-md transition-all"
               >
-                <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-none shadow-inner">
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 bg-gray-50 rounded-2xl overflow-hidden flex-none shadow-inner">
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-[#2D3142] text-sm truncate">
+                      {item.name}
+                    </h3>
+                    <p className="text-orange-500 font-black text-sm pt-1">
+                      Rp {item.price.toLocaleString()}
+                    </p>
+
+                    {/* Stepper */}
+                    <div className="flex items-center mt-2 bg-gray-100 w-fit rounded-xl p-1 gap-4 border border-gray-200/50">
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-400 active:bg-red-500 active:text-white transition-colors"
+                      >
+                        -
+                      </button>
+                      <span className="font-black text-xs text-[#2D3142]">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-orange-500 active:bg-orange-500 active:text-white transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-[#2D3142] text-[12px] truncate">
-                    {item.name}
-                  </h3>
-                  <p className="text-orange-500 font-black text-sm pt-1">
-                    Rp {item.price.toLocaleString()}
-                  </p>
-
-                  {/* Stepper */}
-                  <div className="flex items-center mt-3 bg-gray-100 w-fit rounded-xl p-1 gap-4 border border-gray-200/50">
-                    <button
-                      onClick={() => updateQuantity(item.id, -1)}
-                      className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-400 active:bg-red-500 active:text-white transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="font-black text-xs text-[#2D3142]">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-orange-500 active:bg-orange-500 active:text-white transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    placeholder="Tambah catatan (contoh: pedes banget ya)"
+                    value={item.note || ""}
+                    onChange={(e) => updateNote(item.id, e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[11px] font-medium text-gray-600 focus:outline-none focus:ring-1 focus:ring-orange-200 transition-all italic"
+                  />
                 </div>
               </div>
             ))

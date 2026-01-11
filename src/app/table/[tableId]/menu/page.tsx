@@ -4,12 +4,13 @@ import { use, useState, useEffect, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
+// Inisialisasi Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- KOMPONEN SKELETON (Hanya untuk tampilan loading) ---
+// --- KOMPONEN SKELETON (Biar gak layar kosong pas loading) ---
 const SkeletonCard = () => (
   <div className="bg-white border border-gray-100 p-3 rounded-3xl animate-pulse flex md:flex-col gap-4">
     <div className="w-24 h-24 min-w-[6rem] md:w-full md:aspect-square bg-gray-200 rounded-[1.2rem]"></div>
@@ -32,35 +33,56 @@ export default function MenuPage({
   const { tableId } = use(params);
   const router = useRouter();
 
+  // State Management
   const [menus, setMenus] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [isMounted, setIsMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // <--- State baru
-
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
+  // 1. Ambil Kategori Unik dari Data Menu
   const dynamicCategories = useMemo(() => {
     const cats = menus.map((m) => m.category).filter(Boolean);
     return ["All", ...Array.from(new Set(cats))];
   }, [menus]);
 
+  // 2. Load Data Awal (Nama, Cart dari LocalStorage, dan Menu dari Supabase)
   useEffect(() => {
     setIsMounted(true);
+
+    // Ambil data dari storage biar gak ilang pas balik dari checkout
     const savedName = localStorage.getItem("customerName");
     if (savedName) setCustomerName(savedName);
 
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error("Gagal parse cart:", e);
+      }
+    }
+
     const fetchMenus = async () => {
-      setIsLoading(true); // <--- Start loading
+      setIsLoading(true);
       const { data, error } = await supabase.from("menus").select("*");
       if (error) console.error("Error Supabase:", error.message);
       if (data) setMenus(data);
-      setIsLoading(false); // <--- End loading
+      setIsLoading(false);
     };
     fetchMenus();
   }, []);
 
+  // 3. Auto-Save Cart ke LocalStorage tiap ada perubahan
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem("cart", JSON.stringify(cart));
+    }
+  }, [cart, isMounted]);
+
+  // 4. Logic Filter Search & Category
   const filteredMenus = useMemo(() => {
     return menus.filter((item) => {
       const matchSearch = item.name
@@ -72,6 +94,7 @@ export default function MenuPage({
     });
   }, [menus, searchQuery, selectedCategory]);
 
+  // 5. Handlers (Add, Remove, Checkout)
   const addToCart = (item: any) => {
     if (navigator.vibrate) navigator.vibrate(50);
     setCart((prev) => {
@@ -103,7 +126,6 @@ export default function MenuPage({
   };
 
   const handleGoToCheckout = () => {
-    localStorage.setItem("cart", JSON.stringify(cart));
     router.push(`/table/${tableId}/checkout`);
   };
 
@@ -113,6 +135,7 @@ export default function MenuPage({
   );
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  // Prevent Hydration Mismatch
   if (!isMounted) return null;
 
   return (
@@ -120,6 +143,7 @@ export default function MenuPage({
       <main className="relative w-full flex flex-col bg-white h-[100dvh] md:max-w-2xl md:h-[92vh] md:my-auto md:rounded-4xl md:shadow-2xl md:border md:border-gray-100 overflow-hidden">
         <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
           <div className="p-5 pb-36">
+            {/* HEADER SECTION */}
             <header className="mb-8 mt-2">
               <div className="flex justify-between items-center">
                 <div>
@@ -138,6 +162,7 @@ export default function MenuPage({
                 </div>
               </div>
 
+              {/* SEARCH BAR */}
               <div className="flex gap-3 mt-6 bg-gray-50 p-3 rounded-3xl items-center border border-gray-100 focus-within:ring-2 focus-within:ring-orange-200 transition-all shadow-inner">
                 <span className="pl-2">🔍</span>
                 <input
@@ -149,8 +174,8 @@ export default function MenuPage({
               </div>
             </header>
 
+            {/* CATEGORY TABS */}
             <section className="flex gap-3 overflow-x-auto pb-6 no-scrollbar -mx-5 px-5">
-              {/* SKELETON KATEGORI */}
               {isLoading
                 ? [1, 2, 3, 4].map((i) => (
                     <div
@@ -173,27 +198,43 @@ export default function MenuPage({
                   ))}
             </section>
 
+            {/* MENU GRID */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               {isLoading ? (
-                /* 4. TAMPILIN SKELETON PAS LOADING */
                 [1, 2, 3, 4, 5, 6].map((i) => <SkeletonCard key={i} />)
               ) : filteredMenus.length > 0 ? (
                 filteredMenus.map((item) => {
                   const cartItem = cart.find((c) => c.id === item.id);
-
                   return (
                     <div
                       key={item.id}
                       className="group bg-white border border-gray-100 p-3 rounded-3xl shadow-sm active:scale-[0.98] transition-all duration-200 flex md:flex-col gap-4"
                     >
-                      <div className="relative w-24 h-24 min-w-[6rem] md:w-full md:h-auto md:aspect-square bg-gray-100 rounded-[1.2rem] overflow-hidden">
-                        <div className="absolute top-1.5 left-1.5 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg text-[9px] font-black text-orange-600 uppercase tracking-tighter shadow-sm z-10 border border-orange-100">
+                      <div
+                        className={`relative w-24 h-24 min-w-[6rem] md:w-full md:h-auto md:aspect-square bg-gray-100 rounded-[1.2rem] overflow-hidden ${
+                          !item.is_available ? "grayscale opacity-60" : ""
+                        }`}
+                      >
+                        {/* Badge Kategori */}
+                        <div className="absolute top-1.5 left-1.5 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg text-[7px] font-black text-orange-600 uppercase tracking-tighter shadow-sm z-10 border border-orange-100">
                           {item.category}
                         </div>
+
+                        {/* OVERLAY HABIS (Muncul cuma kalo is_available === false) */}
+                        {!item.is_available && (
+                          <div className="absolute inset-0 bg-black/40 z-20 flex items-center justify-center">
+                            <div className="bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full -rotate-12 shadow-lg border-2 border-white">
+                              SOLDOUT ❌
+                            </div>
+                          </div>
+                        )}
+
                         <img
                           src={item.image_url}
                           alt={item.name}
-                          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                          className={`object-cover w-full h-full transition-transform duration-500 ${
+                            item.is_available ? "group-hover:scale-110" : ""
+                          }`}
                         />
                       </div>
 
@@ -202,7 +243,7 @@ export default function MenuPage({
                           <h3 className="font-extrabold text-[#2D3142] text-sm md:text-base leading-snug line-clamp-2">
                             {item.name}
                           </h3>
-                          <p className="text-[12px] text-gray-400 mt-1 tracking-tight italic">
+                          <p className="text-[12px] text-gray-400 mt-1 tracking-tight">
                             #{item.category}
                           </p>
                         </div>
@@ -227,9 +268,15 @@ export default function MenuPage({
                               </>
                             )}
 
+                            {/* TOMBOL PLUS DENGAN PROTEKSI */}
                             <button
+                              disabled={!item.is_available} // <--- KUNCI BIAR GAK BISA DIKLIK
                               onClick={() => addToCart(item)}
-                              className="bg-[#2D3142] text-white w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center shadow-lg active:bg-orange-500 transition-colors"
+                              className={`w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center shadow-lg transition-all ${
+                                item.is_available
+                                  ? "bg-[#2D3142] text-white active:bg-orange-500 shadow-gray-200"
+                                  : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none" // Style pas mati
+                              }`}
                             >
                               <span className="text-lg font-bold">+</span>
                             </button>
@@ -252,6 +299,7 @@ export default function MenuPage({
           </div>
         </div>
 
+        {/* FLOATING CHECKOUT BAR */}
         {cart.length > 0 && (
           <div className="fixed md:absolute bottom-0 left-0 right-0 p-6 pb-10 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none z-50">
             <button

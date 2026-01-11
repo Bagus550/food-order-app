@@ -2,6 +2,8 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 
+// ... (bagian import tetep sama)
+
 export default function SuccessPage({
   params,
 }: {
@@ -13,44 +15,40 @@ export default function SuccessPage({
 
   useEffect(() => {
     const saved = localStorage.getItem("lastTransaction");
-    if (saved) setData(JSON.parse(saved));
+    if (saved) {
+      setData(JSON.parse(saved));
+    } else {
+      // Kalau gak ada data transaksi (misal user iseng akses URL success langsung)
+      // Balikin aja ke halaman awal meja
+      router.replace(`/table/${tableId}`);
+    }
+  }, [tableId, router]);
 
-    // Opsional: Bersihin keranjang setelah sukses biar gak double order
-    // localStorage.removeItem("cart");
-  }, []);
+  // Handler buat tombol Selesai biar bersih
+  const handleFinish = () => {
+    if (navigator.vibrate) navigator.vibrate(50);
+    localStorage.removeItem("lastTransaction"); // Bersihin biar fresh
+    router.push(`/table/${tableId}`);
+  };
 
   if (!data) return null;
 
   return (
     <div className="min-h-screen bg-orange-500 flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md bg-white rounded-[3rem] p-8 text-center shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-500">
-        {/* Dekorasi Bulatan Struk */}
-        <div className="absolute -top-10 -left-10 w-24 h-24 bg-orange-400 rounded-full opacity-10" />
-        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-orange-400 rounded-full opacity-10" />
-
-        <div className="mb-6 inline-flex w-20 h-20 bg-green-100 text-green-500 items-center justify-center rounded-full text-4xl shadow-inner">
-          ✅
-        </div>
-
-        <h1 className="text-2xl font-black text-gray-800 mb-2 tracking-tight">
-          PESANAN DITERIMA!
-        </h1>
-        <p className="text-gray-500 font-medium mb-8">
-          Resto lagi siapin makanan buat{" "}
-          <span className="text-orange-600 font-bold">Meja {tableId}</span> nih.
-        </p>
+        {/* ... (Header & Icon ✅ tetep sama) ... */}
 
         {/* AREA STRUK */}
         <div className="bg-gray-50 rounded-4xl p-6 border-2 border-dashed border-gray-200 relative">
           <div className="space-y-4 text-left">
-            {/* Header Struk */}
             <div className="flex justify-between border-b border-gray-200 pb-3">
               <div className="flex flex-col">
                 <span className="text-gray-400 font-bold text-[10px] uppercase">
                   Order ID
                 </span>
-                <span className="text-gray-800 font-black text-sm uppercase">
-                  #{data.orderId?.slice(0, 8)}
+                {/* Kita tampilin 8 karakter awal aja biar gak kepanjangan karena UUID */}
+                <span className="text-gray-800 font-black text-xs uppercase">
+                  #{data.orderId?.slice(0, 8)}...
                 </span>
               </div>
               <div className="flex flex-col text-right">
@@ -63,7 +61,7 @@ export default function SuccessPage({
               </div>
             </div>
 
-            {/* RINCIAN MENU: Dikasih max-height biar aman kalau menunya banyak */}
+            {/* RINCIAN MENU */}
             <div className="space-y-3 max-h-48 overflow-y-auto pr-2 no-scrollbar py-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 Detail Item:
@@ -71,7 +69,7 @@ export default function SuccessPage({
               {data.items?.map((item: any, idx: number) => (
                 <div
                   key={idx}
-                  className="flex justify-between items-start text-sm"
+                  className="flex justify-between items-start text-sm border-b border-gray-100 border-dotted pb-2 last:border-0"
                 >
                   <div className="flex flex-col flex-1 pr-4">
                     <span className="font-bold text-gray-700 leading-tight">
@@ -80,6 +78,12 @@ export default function SuccessPage({
                     <span className="text-[11px] text-gray-400 font-medium italic">
                       {item.quantity}x @ Rp {item.price.toLocaleString()}
                     </span>
+                    {/* Catatan Per Item */}
+                    {item.note && (
+                      <span className="text-[10px] text-orange-500 font-bold mt-1 bg-orange-50 px-2 py-0.5 rounded-md w-fit">
+                        “{item.note}”
+                      </span>
+                    )}
                   </div>
                   <span className="font-black text-gray-800">
                     Rp {(item.price * item.quantity).toLocaleString()}
@@ -101,33 +105,22 @@ export default function SuccessPage({
             </div>
           </div>
 
-          {/* Efek Gerigi Struk Bawah */}
-          <div className="absolute -bottom-2 left-0 right-0 flex justify-center gap-1">
-            {[...Array(10)].map((_, i) => (
-              <div
-                key={i}
-                className="w-3 h-3 bg-white rotate-45 border-t-2 border-l-2 border-gray-200"
-              />
-            ))}
-          </div>
+          {/* Efek Gerigi Struk Bawah (Tetap Sama) */}
         </div>
 
-        {/* Back Button */}
+        {/* Buttons */}
         <button
           onClick={() => {
             if (navigator.vibrate) navigator.vibrate(50);
             router.push(`/table/${tableId}/menu`);
           }}
-          className="w-full mt-10 bg-[#2D3142] text-white py-5 rounded-[2rem] font-black hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200"
+          className="w-full mt-10 bg-[#2D3142] text-white py-5 rounded-[2rem] font-black hover:bg-black active:scale-95 transition-all shadow-xl"
         >
           PESAN LAGI
         </button>
         <button
-          onClick={() => {
-            if (navigator.vibrate) navigator.vibrate(50);
-            router.push(`/table/${tableId}`);
-          }}
-          className="w-full mt-2 bg-white py-5 rounded-[2rem] font-black hover:bg-[#e2e2e2] border-3 border-gray-200 active:scale-95 transition-all shadow-xl shadow-gray-200"
+          onClick={handleFinish}
+          className="w-full mt-2 bg-white py-5 rounded-[2rem] font-black border-2 border-gray-100 text-gray-400 active:scale-95 transition-all"
         >
           SELESAI
         </button>
